@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/dgraph-io/badger/v2"
 	"github.com/pkg/profile"
@@ -49,10 +48,10 @@ func main() {
 	// set paths and other variables for the dataset we intend to use
 	dim := 300
 	M := 10
-	R := 50
+	R := 20
 	K := 256
 
-	vocabCount := 100000
+	vocabCount := 10000
 
 	// read medoid from file
 	medoidPath := "../vgraph/glove.6B.300d." + metric + "/medoid.txt"
@@ -186,18 +185,24 @@ func main() {
 	// fmt.Println("Took: ", end.Sub(start))
 	// fmt.Println()
 
-	start := time.Now()
-	closest := vam.GetANN("flag", []float64{}, 500, 16)
-	end := time.Now()
+	//GET NEAREST NEIGHBORS
 
-	fmt.Println()
-	// fmt.Printf("closest: %+v", closest)
-	for _, val := range closest {
-		println()
-		fmt.Println(val.vocab, " ", val.distance)
-	}
-	fmt.Println("Took: ", end.Sub(start))
-	fmt.Println()
+	// start := time.Now()
+	// closest := vam.GetANN("ghanaian", []float64{}, 10, 16)
+	// end := time.Now()
+
+	// fmt.Println()
+	// // fmt.Printf("closest: %+v", closest)
+	// for _, val := range closest {
+	// 	println()
+	// 	fmt.Println(val.vocab, " ", val.distance)
+	// }
+	// fmt.Println("Took: ", end.Sub(start))
+	// fmt.Println()
+
+	// CALCULATE STATISTICS
+	vam.calcStats()
+
 }
 
 // GraphNode represents node in the vamana graph
@@ -205,6 +210,26 @@ type GraphNode struct {
 	vocab    string
 	vector   []float64
 	distance float64
+}
+
+func (vam *Vamana) calcStats() {
+	n := 10000 //number of vectors to use
+	// skip := 0
+	//rs[0]: r@1
+	rs := make([]float64, 1)
+
+	for i := 0; i < n; i++ {
+		closest := vam.GetANN(vam.vocabs[i], []float64{}, 1, 1)
+		if closest[0].vocab == vam.vocabs[i] {
+			rs[0] = rs[0] + 1
+		} else {
+			fmt.Println("wrong: ", vam.vocabs[i])
+		}
+	}
+	fmt.Println()
+	fmt.Println("Stats using ", n, " vectors")
+	fmt.Println("R@1: ", rs[0]/float64(n))
+	fmt.Println()
 }
 
 // GetANN returns the nearest neighbor
@@ -256,6 +281,8 @@ func (vam *Vamana) GetANN(vocab string, xq []float64, k int, beamFactor int) []G
 	} else {
 		lConst = 2 * k
 	}
+
+	// lConst = 5 * k
 
 	l := []uint32{vam.s}
 	v := []uint32{}
